@@ -32,6 +32,7 @@
     button:hover{filter:brightness(1.05);}
     button.secondary{background:#eee; color:var(--ink);}
     button.del{background:#fbeae8; color:var(--danger); padding:4px 10px; font-size:12px;}
+    button.edit{background:#eef1f4; color:var(--ink); padding:4px 10px; font-size:12px;}
     #status{color:var(--muted); font-size:13px;}
     section{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin-bottom:22px;}
     section h2{margin:0 0 14px; font-size:16px;}
@@ -42,10 +43,11 @@
       background:#fffdf9;
     }
     textarea:focus{outline:none; border-color:var(--accent);}
-    .actions{margin-top:12px; text-align:right;}
+    .actions{margin-top:12px; display:flex; gap:10px; justify-content:flex-end;}
     .entry{padding:16px 0; border-bottom:1px dashed var(--line);}
     .entry:last-child{border-bottom:none;}
     .entry .head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+    .entry .head .btns{display:flex; gap:8px;}
     .entry .date{font-size:13px; color:var(--accent); font-weight:600; letter-spacing:1px;}
     .entry .text{white-space:pre-wrap; word-break:break-word; font-size:15px;}
     .empty{color:var(--muted); text-align:center; padding:20px 0; font-size:14px;}
@@ -70,10 +72,13 @@
     </div>
 
     <section id="writeSection" hidden>
-      <h2>写新日记</h2>
+      <h2 id="writeTitle">写新日记</h2>
       <div class="today">今天：<span id="todayLabel"></span></div>
       <textarea id="newText" placeholder="写下今天想说的话…"></textarea>
-      <div class="actions"><button id="btnAdd">💾 保存今天</button></div>
+      <div class="actions">
+        <button id="btnCancel" class="secondary" hidden>取消编辑</button>
+        <button id="btnAdd">💾 保存今天</button>
+      </div>
     </section>
 
     <section id="listSection" hidden>
@@ -87,6 +92,7 @@
   <script>
     var fileHandle = null;
     var data = { entries: [] };
+    var editingId = null;
 
     function esc(s){
       return String(s).replace(/[&<>]/g, function(c){
@@ -173,22 +179,51 @@
         return '<article class="entry">' +
           '<div class="head">' +
             '<span class="date">' + fmtDate(e.date) + '</span>' +
-            '<button class="del" data-id="' + e.id + '">删除</button>' +
+            '<span class="btns">' +
+              '<button class="edit" data-id="' + e.id + '">编辑</button>' +
+              '<button class="del" data-id="' + e.id + '">删除</button>' +
+            '</span>' +
           '</div>' +
           '<div class="text">' + esc(e.text || '') + '</div>' +
         '</article>';
       }).join('');
     }
 
-    async function addEntry(){
+    function setEditMode(editing){
+      document.getElementById('writeTitle').textContent = editing ? '编辑这条日记' : '写新日记';
+      document.getElementById('btnAdd').textContent = editing ? '💾 保存修改' : '💾 保存今天';
+      document.getElementById('btnCancel').hidden = !editing;
+    }
+    function startEdit(id){
+      var e = data.entries.find(function(x){ return x.id === id; });
+      if(!e) return;
+      editingId = id;
+      document.getElementById('newText').value = e.text || '';
+      setEditMode(true);
+      document.getElementById('newText').focus();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    function cancelEdit(){
+      editingId = null;
+      document.getElementById('newText').value = '';
+      setEditMode(false);
+    }
+    async function saveEntry(){
       var text = document.getElementById('newText').value.trim();
       if(!text){ toast('请先写点内容'); return; }
-      data.entries.push({ id: String(Date.now()), ts: Date.now(), date: todayStr(), text: text });
+      if(editingId){
+        var e = data.entries.find(function(x){ return x.id === editingId; });
+        if(e){ e.text = text; }
+        editingId = null;
+      }else{
+        data.entries.push({ id: String(Date.now()), ts: Date.now(), date: todayStr(), text: text });
+      }
       document.getElementById('newText').value = '';
+      setEditMode(false);
       try{
         await saveToFile();
         render();
-        toast('已保存到 entries.js');
+        toast('已保存');
       }catch(e){ alert('保存失败：' + e.message); }
     }
 
@@ -203,10 +238,13 @@
     }
 
     document.getElementById('btnOpen').addEventListener('click', openFile);
-    document.getElementById('btnAdd').addEventListener('click', addEntry);
+    document.getElementById('btnAdd').addEventListener('click', saveEntry);
+    document.getElementById('btnCancel').addEventListener('click', cancelEdit);
     document.getElementById('entryList').addEventListener('click', function(ev){
-      var btn = ev.target.closest('button.del');
-      if(btn){ delEntry(btn.dataset.id); }
+      var del = ev.target.closest('button.del');
+      if(del){ delEntry(del.dataset.id); return; }
+      var ed = ev.target.closest('button.edit');
+      if(ed){ startEdit(ed.dataset.id); }
     });
   </script>
 </body>
