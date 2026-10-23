@@ -15,8 +15,20 @@ if errorlevel 1 (
 ) else (
   echo No changes to publish.
 )
-git push -u origin main
 
 echo.
-echo Publish done. Visitors can refresh the page to see the latest.
+echo Pushing to GitHub...
+git push -u origin main > "%TEMP%\diary_push.log" 2>&1
+set PUSHERR=%errorlevel%
+echo ---- push output ----
+type "%TEMP%\diary_push.log"
+echo ---------------------
+echo.
+if %PUSHERR% EQU 0 (
+  echo ====== PUSH OK ======
+  echo Wait about 1 minute, then hard-refresh with Ctrl+F5.
+) else (
+  echo ====== PUSH FAILED. Error code: %PUSHERR% ======
+  echo Keep this window open. The error is shown above.
+)
 pause
