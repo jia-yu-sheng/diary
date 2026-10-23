@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的日记本</title>
+  <style>
+    :root{
+      --bg:#faf7f2; --card:#ffffff; --ink:#3a3a3a; --muted:#9a9288;
+      --accent:#c8a06a; --line:#eee6da;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink); line-height:1.75;
+    }
+    header{
+      padding:56px 20px 30px; text-align:center; border-bottom:1px solid var(--line);
+    }
+    header h1{margin:0; font-size:28px; letter-spacing:2px; font-weight:600;}
+    header p{margin:8px 0 0; color:var(--muted); font-size:14px;}
+    main{max-width:720px; margin:0 auto; padding:34px 20px 80px;}
+    .entry{
+      background:var(--card); border:1px solid var(--line); border-radius:14px;
+      padding:24px 28px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,.03);
+    }
+    .entry .date{
+      font-size:13px; color:var(--accent); font-weight:600; letter-spacing:1px;
+      margin-bottom:12px;
+    }
+    .entry .text{white-space:pre-wrap; word-break:break-word; font-size:16px;}
+    .empty{text-align:center; color:var(--muted); padding:70px 0; font-size:15px;}
+    footer{text-align:center; color:var(--muted); font-size:12px; padding:28px 0 40px;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📖 我的日记本</h1>
+    <p>只读页面 · 访客只能查看</p>
+  </header>
+
+  <main id="entries"></main>
+  <footer>内容由本子主人发布 · 本页面无法编辑</footer>
+
+  <script src="entries.js"></script>
+  <script>
+    function esc(s){
+      return String(s).replace(/[&<>]/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
+      });
+    }
+    function fmtDate(s){
+      if(!s) return '';
+      var p = s.split('-');
+      if(p.length !== 3) return s;
+      return p[0] + ' 年 ' + Number(p[1]) + ' 月 ' + Number(p[2]) + ' 日';
+    }
+    function render(){
+      var box = document.getElementById('entries');
+      var data = window.DIARY_DATA || { entries: [] };
+      var list = (data.entries || []).slice().sort(function(a,b){
+        return (b.date||'').localeCompare(a.date||'');
+      });
+      if(list.length === 0){
+        box.innerHTML = '<div class="empty">还没有内容。</div>';
+        return;
+      }
+      box.innerHTML = list.map(function(e){
+        return '<article class="entry">' +
+          '<div class="date">' + fmtDate(e.date) + '</div>' +
+          '<div class="text">' + esc(e.text || '') + '</div>' +
+        '</article>';
+      }).join('');
+    }
+    render();
+  </script>
+</body>
+</html>

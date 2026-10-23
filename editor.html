@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日记本 · 写作页（仅作者使用）</title>
+  <style>
+    :root{
+      --bg:#f4efe9; --card:#ffffff; --ink:#3a3a3a; --muted:#9a9288;
+      --accent:#c8a06a; --line:#e8dfd2; --danger:#c0564f;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink); line-height:1.7;
+    }
+    header{
+      padding:40px 20px 22px; text-align:center; border-bottom:1px solid var(--line);
+    }
+    header h1{margin:0; font-size:24px; letter-spacing:2px;}
+    header p{margin:6px 0 0; color:var(--muted); font-size:13px;}
+    .wrap{max-width:720px; margin:0 auto; padding:26px 20px 80px;}
+    .toolbar{
+      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+      background:var(--card); border:1px solid var(--line); border-radius:12px;
+      padding:16px 18px; margin-bottom:22px;
+    }
+    button{
+      font-family:inherit; cursor:pointer; border:none; border-radius:9px;
+      padding:10px 16px; font-size:14px; background:var(--accent); color:#fff;
+    }
+    button:hover{filter:brightness(1.05);}
+    button.secondary{background:#eee; color:var(--ink);}
+    button.del{background:#fbeae8; color:var(--danger); padding:4px 10px; font-size:12px;}
+    #status{color:var(--muted); font-size:13px;}
+    section{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin-bottom:22px;}
+    section h2{margin:0 0 14px; font-size:16px;}
+    .today{color:var(--muted); font-size:13px; margin-bottom:8px;}
+    textarea{
+      width:100%; min-height:160px; resize:vertical; font-family:inherit; font-size:16px;
+      border:1px solid var(--line); border-radius:10px; padding:14px; color:var(--ink);
+      background:#fffdf9;
+    }
+    textarea:focus{outline:none; border-color:var(--accent);}
+    .actions{margin-top:12px; text-align:right;}
+    .entry{padding:16px 0; border-bottom:1px dashed var(--line);}
+    .entry:last-child{border-bottom:none;}
+    .entry .head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+    .entry .date{font-size:13px; color:var(--accent); font-weight:600; letter-spacing:1px;}
+    .entry .text{white-space:pre-wrap; word-break:break-word; font-size:15px;}
+    .empty{color:var(--muted); text-align:center; padding:20px 0; font-size:14px;}
+    #toast{
+      position:fixed; left:50%; bottom:30px; transform:translateX(-50%);
+      background:rgba(50,50,50,.92); color:#fff; padding:10px 20px; border-radius:20px;
+      font-size:14px; opacity:0; pointer-events:none; transition:opacity .25s;
+    }
+    #toast.show{opacity:1;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✍️ 日记写作页</h1>
+    <p>这个页面只在你自己的电脑上使用，不会被访客看到。</p>
+  </header>
+
+  <div class="wrap">
+    <div class="toolbar">
+      <button id="btnOpen">📂 打开数据文件 entries.js</button>
+      <span id="status">尚未打开文件</span>
+    </div>
+
+    <section id="writeSection" hidden>
+      <h2>写新日记</h2>
+      <div class="today">今天：<span id="todayLabel"></span></div>
+      <textarea id="newText" placeholder="写下今天想说的话…"></textarea>
+      <div class="actions"><button id="btnAdd">💾 保存今天</button></div>
+    </section>
+
+    <section id="listSection" hidden>
+      <h2>已有的日记（新的在上）</h2>
+      <div id="entryList"></div>
+    </section>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    var fileHandle = null;
+    var data = { entries: [] };
+
+    function esc(s){
+      return String(s).replace(/[&<>]/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
+      });
+    }
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function todayStr(){
+      var d = new Date();
+      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+    }
+    function fmtDate(s){
+      if(!s) return '';
+      var p = s.split('-');
+      if(p.length !== 3) return s;
+      return p[0] + ' 年 ' + Number(p[1]) + ' 月 ' + Number(p[2]) + ' 日';
+    }
+    function toast(msg){
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+    }
+
+    async function openFile(){
+      if(!window.showOpenFilePicker){
+        alert('当前浏览器不支持文件选择功能。\n请使用最新版 Edge 或 Chrome，并直接双击打开本文件（editor.html）。');
+        return;
+      }
+      try{
+        var handles = await showOpenFilePicker({
+          types:[{description:'日记数据 JS', accept:{'text/javascript':['.js']}}],
+          multiple:false
+        });
+        fileHandle = handles[0];
+        await reload();
+      }catch(e){
+        if(e && e.name === 'AbortError'){ return; }
+        alert('打开失败：' + e.message);
+      }
+    }
+
+    async function reload(){
+      var f = await fileHandle.getFile();
+      var txt = await f.text();
+      try{
+        var fn = new Function(txt + '\n; return window.DIARY_DATA;');
+        data = fn() || { entries: [] };
+      }catch(e){ data = { entries: [] }; }
+      if(!Array.isArray(data.entries)) data.entries = [];
+      // 给缺失 id 的旧条目补一个 id
+      data.entries = data.entries.map(function(e){
+        if(!e.id){ e.id = String(Date.now()) + Math.random(); }
+        return e;
+      });
+      render();
+      document.getElementById('status').textContent = '已打开：' + f.name;
+      document.getElementById('writeSection').hidden = false;
+      document.getElementById('listSection').hidden = false;
+    }
+
+    async function saveToFile(){
+      var writable = await fileHandle.createWritable();
+      await writable.write('window.DIARY_DATA = ' + JSON.stringify(data, null, 2) + ';\n');
+      await writable.close();
+    }
+
+    function render(){
+      document.getElementById('todayLabel').textContent = fmtDate(todayStr());
+      var list = data.entries.slice().sort(function(a,b){
+        return (b.date||'').localeCompare(a.date||'');
+      });
+      var box = document.getElementById('entryList');
+      if(list.length === 0){
+        box.innerHTML = '<div class="empty">还没有日记。</div>';
+        return;
+      }
+      box.innerHTML = list.map(function(e){
+        return '<article class="entry">' +
+          '<div class="head">' +
+            '<span class="date">' + fmtDate(e.date) + '</span>' +
+            '<button class="del" data-id="' + e.id + '">删除</button>' +
+          '</div>' +
+          '<div class="text">' + esc(e.text || '') + '</div>' +
+        '</article>';
+      }).join('');
+    }
+
+    async function addEntry(){
+      var text = document.getElementById('newText').value.trim();
+      if(!text){ toast('请先写点内容'); return; }
+      data.entries.push({ id: String(Date.now()), date: todayStr(), text: text });
+      document.getElementById('newText').value = '';
+      try{
+        await saveToFile();
+        render();
+        toast('已保存到 entries.js');
+      }catch(e){ alert('保存失败：' + e.message); }
+    }
+
+    async function delEntry(id){
+      if(!confirm('确定删除这条日记吗？')) return;
+      data.entries = data.entries.filter(function(e){ return e.id !== id; });
+      try{
+        await saveToFile();
+        render();
+        toast('已删除并保存');
+      }catch(e){ alert('保存失败：' + e.message); }
+    }
+
+    document.getElementById('btnOpen').addEventListener('click', openFile);
+    document.getElementById('btnAdd').addEventListener('click', addEntry);
+    document.getElementById('entryList').addEventListener('click', function(ev){
+      var btn = ev.target.closest('button.del');
+      if(btn){ delEntry(btn.dataset.id); }
+    });
+  </script>
+</body>
+</html>
