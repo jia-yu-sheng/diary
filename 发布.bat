@@ -15,7 +15,7 @@ if errorlevel 1 (
 ) else (
   echo No changes to publish.
 )
-git push
+git push -u origin main
 
 echo.
 echo Publish done. Visitors can refresh the page to see the latest.
