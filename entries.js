@@ -53,6 +53,12 @@ window.DIARY_DATA = {
       "ts": 1793429544163,
       "date": "2026-10-31",
       "text": "OMG! it`s halloween\nwish i had a friend with me\nevery year i am all alone\ni have no reason to leave my home\nbought a costume that is really funny\nbut why dress up if i have nobody?\nlonely halloween~\nit`s a lonely halloween\nlonely halloween~\nno one hears me scream\ni wanna throw a house party\nand stay out super late\nbut instead i guss i`ll just get drunk\nand monster mashtrbate\ntrick or treat, treat or trick\nwish a vampire would suck my blood\nghouls and ghost don`t scare me\ncause there`s nothing worse than being lonely\nthis is it spooky time\nwait all night and start to cry\nwhy does god punish me?\ni suffer each day i live and breath\nlonely halloween~\nit`s a lonely halloween\nlonely halloween~\nsomeone put an end to me\nplease end my suffering\ni said please end my suffering\nplease end my suffering"
+    },
+    {
+      "id": "1793535305539",
+      "ts": 1793535305539,
+      "date": "2026-11-01",
+      "text": "最近有点废了。忘了不回家了。更准确的来说忘了回家不报备而是住在朋友家里"
     }
   ]
 };
